@@ -1,8 +1,6 @@
-use ratatui::{
-    crossterm::event::Event,
-    style::Stylize,
-    widgets::{},
-};
+use std::fmt::Display;
+
+use ratatui::{crossterm::event::Event, style::Stylize};
 
 #[derive(Debug)]
 struct Action {}
@@ -13,6 +11,19 @@ enum Faction {
     Traides,
     Empire,
     Scrapper,
+}
+impl Display for Faction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Faction::Blob => write!(f, "B"),
+            Faction::Traides => write!(f, "T"),
+            Faction::Empire => write!(f, "E"),
+            Faction::Scrapper => write!(f, "S"),
+        }
+    }
+}
+fn boo(faction: Faction) {
+    println!("{}", faction)
 }
 
 #[derive(Debug)]
@@ -53,6 +64,10 @@ pub struct Player {
     attack: u32,
 }
 
+trait HandleEvent {
+    fn handle_event(&mut self, event: &Event);
+}
+
 impl Player {
     fn attack(&mut self) {}
     fn draw_hand(&mut self) {}
@@ -61,6 +76,4 @@ impl Player {
     fn by_card(&mut self) {}
 }
 
-mod game {
-    
-}
+mod game {}
