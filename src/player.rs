@@ -2,6 +2,7 @@ use crate::{
     action::{ATTACK_STR, AUTHORITY_STR, Action, GOLD_STR},
     card::Card,
     deck::Deck,
+    selection::Location,
 };
 use std::fmt::Display;
 
@@ -66,7 +67,7 @@ impl Player {
     /// Draw a complete hand of 5 cards for a [Player]
     pub fn draw_hand(&mut self) {
         for _ in 0..5 {
-            self.draw_card()
+            self.draw_random_card()
         }
     }
 
@@ -82,7 +83,7 @@ impl Player {
             Scrap { loc, nb } => todo!(),
             Draw(i) => {
                 for _ in 0..*i {
-                    self.draw_card();
+                    self.draw_random_card();
                 }
             }
             OpponentDiscard(i) => (),
@@ -97,8 +98,22 @@ impl Player {
         }
     }
 
-    /// Draw a [Card] from the `draw_pile` of a [Player] to put in it's `hand`
-    pub fn draw_card(&mut self) {
+    /// Draw a random [Card] from the `draw_pile` of a [Player] to put in it's `hand`
+    ///
+    /// If the draw_pile is empty then the `discard` is put inside the
+    /// `draw_pile` before drawing a new card
+    pub fn draw_random_card(&mut self) {
+        if self.draw_pile.is_empty() {
+            for _ in 0..self.discard.len() {
+                self.draw_pile.push(self.discard.remove_last());
+            }
+            // If the draw pile is still empty
+            // there is no more card to draw
+            if self.draw_pile.is_empty() {
+                return;
+            }
+        }
+
         if let Ok(card) = self.draw_pile.remove_random() {
             self.hand.push(card)
         }
@@ -133,5 +148,67 @@ impl Default for Player {
             authority: 50,
             played: Deck::EMPTY,
         }
+    }
+}
+
+/// Implementation of the operation : `player`[`index`]
+/// - `player` a [Player]
+/// - `index` a [Location]
+impl std::ops::IndexMut<&Location> for Player {
+    fn index_mut(&mut self, index: &Location) -> &mut Self::Output {
+        use Location::*;
+        match index {
+            DiscardOrHand => &mut self.discard,
+            Played => &mut self.played,
+            Hand => &mut self.hand,
+            DrawPile => &mut self.draw_pile,
+            CurrentCard => panic!("Cannot Index Player with location \"current card\""),
+        }
+    }
+}
+/// Implementation of the operation : `player`[`index`]
+/// - `player` a [Player]
+/// - `index` a [Location]
+impl std::ops::IndexMut<Location> for Player {
+    fn index_mut(&mut self, index: Location) -> &mut Self::Output {
+        &mut self[&index]
+    }
+}
+/// Implementation of the operation : `player`[`index`]
+/// - `player` a [Player]
+/// - `index` a [Location]
+impl std::ops::Index<&mut Location> for Player {
+    type Output = Deck;
+
+    fn index(&self, index: &mut Location) -> &Self::Output {
+        let index: &Location = index;
+        &self[index]
+    }
+}
+/// Implementation of the operation : `player`[`index`]
+/// - `player` a [Player]
+/// - `index` a [Location]
+impl std::ops::Index<&Location> for Player {
+    type Output = Deck;
+
+    fn index(&self, index: &Location) -> &Self::Output {
+        use Location::*;
+        match index {
+            DiscardOrHand => &self.discard,
+            Played => &self.played,
+            Hand => &self.hand,
+            DrawPile => &self.draw_pile,
+            CurrentCard => panic!("Cannot Index Player with location \"current card\""),
+        }
+    }
+}
+/// Implementation of the operation : `player`[`index`]
+/// - `player` a [Player]
+/// - `index` a [Location]
+impl std::ops::Index<Location> for Player {
+    type Output = Deck;
+
+    fn index(&self, index: Location) -> &Self::Output {
+        &self[&index]
     }
 }

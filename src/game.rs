@@ -43,6 +43,22 @@ impl Game {
             current_player: PlayerId::First,
         }
     }
+    pub fn next_turn(&mut self) {
+        // End the turn of the current player
+        let cur = &mut self.players[self.current_player];
+        for _ in 0..cur.played.len() {
+            cur.discard.push(cur.played.remove_last())
+        }
+        for _ in 0..cur.hand.len() {
+            cur.discard.push(cur.hand.remove_last())
+        }
+
+        // Change the player
+        self.current_player = self.current_player.other();
+
+        // Make the new current_player draw his hand
+        self.players[self.current_player].draw_hand();
+    }
 }
 
 impl Game {
@@ -60,40 +76,71 @@ impl Game {
     fn handle_key_event(&mut self, event: KeyEvent) {
         use Location::*;
         use Selection::*;
-        use ratatui::crossterm::event::KeyCode::*;
-        match (event.code, &mut self.selection) {
-            (Enter | Char(' '), Shop { index }) => {
+        // use ratatui::crossterm::event::KeyCode::*;
+
+        enum KeyCode {
+            EnterOrSpace,
+            Left,
+            Right,
+            Up,
+            Down,
+        }
+        use KeyCode::*;
+        let key_code = match event.code {
+            ratatui::crossterm::event::KeyCode::Char(' ')
+            | ratatui::crossterm::event::KeyCode::Enter => EnterOrSpace,
+            ratatui::crossterm::event::KeyCode::Left => Left,
+            ratatui::crossterm::event::KeyCode::Right => Right,
+            ratatui::crossterm::event::KeyCode::Up => Up,
+            ratatui::crossterm::event::KeyCode::Down => Down,
+            _ => {
+                return;
+            }
+        };
+
+        match (key_code, &mut self.selection) {
+            (EnterOrSpace, Shop { index }) => {
                 self.players[self.current_player].buy_from_shop(
                     &mut self.deck,
                     &mut self.shop,
                     *index,
                 );
             }
-            (Enter | Char(' '), ShopExplorer) => {
+            (EnterOrSpace, ShopExplorer) => {
                 self.players[self.current_player].buy_card(Card::explorer());
             }
-            (Enter | Char(' '), ActionButton) => (),
+            (EnterOrSpace, ActionButton) => {
+                let attack = self.players[self.current_player].get_attack();
+
+                if attack == 0 {
+                    self.next_turn();
+                } else {
+                    self.players[self.current_player.other()].authority -= attack;
+                }
+            }
             (
-                Enter | Char(' '),
+                EnterOrSpace,
+                Deck {
+                    index,
+                    player,
+                    kind: Hand,
+                },
+            ) => {
+                self.players[*player].play_card(*index);
+                if self.players[player].hand.is_empty() {
+                    self.selection = ActionButton;
+                }
+            }
+            (
+                EnterOrSpace,
                 Deck {
                     index,
                     player,
                     kind,
                 },
-            ) => match kind {
-                Discard => todo!(),
-                Played => todo!(),
-                Hand => self.players[*player].play_card(*index),
-                DrawPile => todo!(),
-                CurrentCard => todo!(),
-            },
-            (Left, Shop { index }) => {
-                if index == &0 {
-                    self.selection = ShopExplorer
-                } else {
-                    *index -= 1
-                }
-            }
+            ) => (),
+            (Left, Shop { index: 0 }) => self.selection = ShopExplorer,
+            (Left, Shop { index }) => *index -= 1,
             (Left, ShopExplorer) => (), // Nothing to do
             (Left, ActionButton) => {
                 if !self.players[self.current_player.to_usize()].hand.is_empty() {
@@ -107,22 +154,52 @@ impl Game {
             (
                 Left,
                 Deck {
+                    index: 0,
+                    player,
+                    kind,
+                },
+            ) => (),
+            (
+                Left,
+                Deck {
                     index,
                     player,
                     kind,
                 },
             ) => *index -= 1,
-            (Right, Shop { index }) => *index += 1,
+            (Right, Shop { index }) => {
+                if *index != self.shop.len() - 1 {
+                    *index += 1;
+                }
+            }
             (Right, ShopExplorer) => self.selection = Shop { index: 0 },
             (Right, ActionButton) => (), // Nothing to do
             (
                 Right,
                 Deck {
                     index,
+                    player: PlayerId::First,
+                    kind: Location::Hand,
+                },
+            ) => {
+                if *index + 1 == self.players[0].hand.len() {
+                    self.selection = ActionButton;
+                } else {
+                    *index += 1;
+                }
+            }
+            (
+                Right,
+                Deck {
                     player,
                     kind,
+                    index,
                 },
-            ) => *index += 1,
+            ) => {
+                if *index + 1 != self.players[player][kind].len() {
+                    *index += 1;
+                }
+            }
             (Up, Shop { .. }) => {
                 self.selection = Deck {
                     player: self.current_player.other(),
@@ -147,40 +224,82 @@ impl Game {
                 },
             ) => {
                 if player == &self.current_player {
-                    self.selection = Shop { index: 0 }
+                    use Location::*;
+                    match kind {
+                        DiscardOrHand | Played => self.selection = Shop { index: 0 },
+                        Hand => {
+                            *kind = Played;
+                            *index = 0;
+                        }
+                        DrawPile => {
+                            *index = 0;
+                            *kind = DiscardOrHand;
+                        }
+                        CurrentCard => (),
+                    }
                 } else {
                     ()
                 }
             }
-            (Down, Shop { .. }) => {
-                self.selection = Deck {
-                    player: self.current_player,
-                    kind: Location::Hand,
-                    index: 0,
-                }
-            }
-            (Down, ShopExplorer) => {
-                self.selection = Deck {
-                    player: self.current_player,
-                    kind: Location::Hand,
-                    index: 0,
+            (Down, Shop { .. } | ShopExplorer) => {
+                if !self.players[self.current_player].played.is_empty() {
+                    self.selection = Deck {
+                        player: self.current_player,
+                        kind: Location::Played,
+                        index: 0,
+                    }
+                } else if !self.players[self.current_player].hand.is_empty() {
+                    self.selection = Deck {
+                        player: self.current_player,
+                        kind: Location::Hand,
+                        index: 0,
+                    }
+                } else {
+                    self.selection = ActionButton;
                 }
             }
             (Down, ActionButton) => (),
             (
                 Down,
                 Deck {
-                    player,
+                    player: PlayerId::First,
+                    kind: Location::Played,
+                    ..
+                },
+            ) => {
+                if !self.players[self.current_player].hand.is_empty() {
+                    self.selection = Deck {
+                        player: PlayerId::First,
+                        kind: Location::Hand,
+                        index: 0,
+                    }
+                } else {
+                    self.selection = ActionButton
+                }
+            }
+            (
+                Down,
+                Deck {
+                    player: PlayerId::First,
+                    kind: Location::Hand,
+                    ..
+                },
+            ) => self.selection = ActionButton,
+            (
+                Down,
+                Deck {
+                    player: PlayerId::First,
+                    ..
+                },
+            ) => self.selection = ActionButton,
+            (
+                Down,
+                Deck {
+                    player: PlayerId::Second,
                     kind,
                     index,
                 },
-            ) => {
-                if player == &self.current_player {
-                } else {
-                    self.selection = ShopExplorer;
-                }
-            }
-            (_, _) => (),
+            ) => self.selection = ShopExplorer,
         }
     }
 }
@@ -230,6 +349,12 @@ impl Widget for &Game {
                 .set_selection(selection_shop)
                 .render(shop, buf);
         }
+        // Player Not playing right now
+        {
+            let layout = layout_players[self.current_player.other()];
+            let player = &self.players[self.current_player.other()];
+            Paragraph::new(format!("{}", player)).render(layout, buf);
+        }
         // Current Player
         {
             let layout = layout_players[self.current_player];
@@ -270,12 +395,12 @@ impl Widget for &Game {
             {
                 let layout = Layout::default()
                     .direction(Vertical)
-                    .constraints([Fill(1), Fill(1), Fill(1), Fill(1)])
+                    .constraints([Length(3), Fill(1), Fill(1), Length(3)])
                     .split(right);
                 let (info, discard, draw_pile, action_button) =
                     (layout[0], layout[1], layout[2], layout[3]);
 
-                // Draw info about player
+                // Draw info about current player
                 Paragraph::new(format!("{}", player)).render(info, buf);
                 // Draw pile of the current player
                 player
@@ -294,13 +419,14 @@ impl Widget for &Game {
                     .hidden()
                     .render(discard, buf);
                 // Action Button
-                Card::EMPTY_CARD
+                Card::EMPTY_SHIP
                     .with_name("Action Button")
                     .widget()
                     .set_selection(selection_action_button)
                     .render(action_button, buf);
             }
         }
+
         // Status Line
         Paragraph::new(format!("{}", self.selection)).render(status_line, buf);
     }

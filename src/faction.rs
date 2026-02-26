@@ -1,6 +1,6 @@
 use std::{fmt::Display, slice::Iter};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Factions(Vec<Faction>);
 
 impl Factions {
@@ -15,9 +15,26 @@ impl Display for Factions {
     }
 }
 
+impl std::ops::Index<usize> for Factions {
+    type Output = Faction;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        todo!()
+    }
+}
+
 impl Factions {
+    pub fn new(factions: Vec<Faction>) -> Self {
+        Self(factions)
+    }
     pub fn iter(&self) -> Iter<'_, Faction> {
         self.0.iter()
+    }
+    pub fn push(&mut self, faction: Faction) {
+        self.0.push(faction)
+    }
+    pub fn first(&self) -> Option<&Faction> {
+        self.0.first()
     }
 }
 impl Faction {
@@ -30,7 +47,7 @@ impl Faction {
         }
     }
 }
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Faction {
     Blob,
     Trade,

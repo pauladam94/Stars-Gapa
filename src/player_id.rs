@@ -28,6 +28,12 @@ impl<T> std::ops::IndexMut<&PlayerId> for [T; 2] {
         &mut self[index.to_usize()]
     }
 }
+impl<T> std::ops::Index<&mut PlayerId> for [T; 2] {
+    type Output = T;
+    fn index(&self, index: &mut PlayerId) -> &Self::Output {
+        &self[index.to_usize()]
+    }
+}
 
 impl Display for PlayerId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -1,6 +1,6 @@
 use crate::{
     action::{Action, Condition},
-    faction::Factions,
+    faction::{Faction, Factions},
     selection::Location,
 };
 use ratatui::{
@@ -11,13 +11,9 @@ use ratatui::{
 };
 use std::{fmt::Display, slice::Iter};
 
-#[derive(Debug)]
-enum OutPost {
-    OutPost,
-    NotOutpost,
-}
+pub mod collection;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CardInfo {
     /// Name of a [Card]
     name: &'static str,
@@ -27,6 +23,15 @@ pub struct CardInfo {
     pub gold: u32,
     /// Faction(s) of a [Card]
     pub faction: Factions,
+}
+
+impl CardInfo {
+    pub const DEFAULT: Self = CardInfo {
+        name: "",
+        actions: vec![],
+        gold: 0,
+        faction: Factions::NONE,
+    };
 }
 
 #[derive(Debug)]
@@ -71,50 +76,6 @@ impl Card {
     /// Creates an iterator over [Action] from a [Card]
     pub fn iter(&self) -> Iter<'_, Action> {
         self.get_info().actions.iter()
-    }
-}
-use Action::*;
-impl Card {
-    pub const EMPTY_CARD: Self = Self::Ship(CardInfo {
-        name: "",
-        actions: vec![],
-        gold: 0,
-        faction: Factions::NONE,
-    });
-    pub fn with_name(mut self, name: &'static str) -> Self {
-        let info = self.get_mut_info();
-        info.name = name;
-        self
-    }
-    pub fn viper() -> Self {
-        Self::Ship(CardInfo {
-            name: "Viper",
-            actions: vec![Attack(1)],
-            gold: 1,
-            faction: Factions::NONE,
-        })
-    }
-    pub fn scout() -> Self {
-        Self::Ship(CardInfo {
-            name: "Scout",
-            actions: vec![Gold(1)],
-            gold: 1,
-            faction: Factions::NONE,
-        })
-    }
-    pub fn explorer() -> Self {
-        Self::Ship(CardInfo {
-            name: "Explorer",
-            actions: vec![
-                Action::Gold(2),
-                Action::Complex {
-                    condition: Condition::Scrap(Location::CurrentCard),
-                    result: vec![Attack(2)],
-                },
-            ],
-            gold: 2,
-            faction: Factions::NONE,
-        })
     }
 }
 

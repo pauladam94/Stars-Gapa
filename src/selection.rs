@@ -1,29 +1,28 @@
+use crate::{deck::Deck, player::Player, player_id::PlayerId};
 use std::fmt::Display;
 
-use crate::player_id::PlayerId;
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Location {
-    Discard,
+    DiscardOrHand,
     Played,
     Hand,
     DrawPile,
     CurrentCard,
+    Shop,
 }
 
 impl Display for Location {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Location::Discard => write!(f, "discard"),
+            Location::DiscardOrHand => write!(f, "discard or hand"),
             Location::Played => write!(f, "played cards"),
             Location::Hand => write!(f, "hand"),
             Location::DrawPile => write!(f, "draw pile"),
             Location::CurrentCard => write!(f, "currrent card"),
+            Location::Shop => write!(f, "shop"),
         }
     }
 }
-
-pub mod player_id {}
 
 #[derive(Debug)]
 pub enum Selection {
@@ -78,8 +77,13 @@ impl Selection {
             Selection::Deck {
                 index,
                 player,
-                kind,
+                kind: Location::Hand,
             } => selection.selection_players[player] = Some(*index),
+            Selection::Deck {
+                index,
+                player,
+                kind,
+            } => (),
         };
         selection
     }

@@ -6,7 +6,6 @@ use crate::{
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin},
     prelude::{Buffer, Rect},
-    style::Style,
     text::Line,
     widgets::{Block, BorderType, Paragraph, Widget},
 };
@@ -36,6 +35,13 @@ impl Deck {
     pub fn remove(&mut self, index: usize) -> Card {
         self.0.remove(index)
     }
+    /// Remove a [Card] from a [Deck] at a spefic index
+    /// Panic if `index` is out of bound
+    ///
+    /// Remark: this function has a O(1) complexity
+    pub fn remove_last(&mut self) -> Card {
+        self.0.remove(self.0.len() - 1)
+    }
     /// Add the a [Card] to a [Deck]
     pub fn push(&mut self, card: Card) {
         self.0.push(card)
@@ -63,12 +69,25 @@ impl Deck {
     }
     pub fn starter_complete_deck() -> Self {
         let mut deck = vec![];
-        for _ in 0..10 {
+
+        for _ in 0..2 {
             deck.push(Card::viper());
         }
-        for _ in 0..10 {
+        for _ in 0..2 {
             deck.push(Card::scout());
         }
+        // Machine
+        deck.push(Card::brain_world());
+        // Trade
+        for _ in 0..3 {
+            deck.push(Card::cutter());
+        }
+
+        // Block
+        for _ in 0..3 {
+            deck.push(Card::blob_wheel())
+        }
+
         Self(deck)
     }
 
