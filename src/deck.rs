@@ -70,20 +70,20 @@ impl Deck {
     pub fn starter_complete_deck() -> Self {
         let mut deck = vec![];
 
-        for _ in 0..2 {
-            deck.push(Card::viper());
-        }
-        for _ in 0..2 {
-            deck.push(Card::scout());
-        }
-        // Machine
-        deck.push(Card::brain_world());
         // Trade
         for _ in 0..3 {
             deck.push(Card::cutter());
         }
+        // Machine
+        deck.push(Card::brain_world());
+        for _ in 0..3 {
+            deck.push(Card::trade_bot());
+            deck.push(Card::missile_bot());
+        }
 
-        // Block
+        // Star
+
+        // Blob
         for _ in 0..3 {
             deck.push(Card::blob_wheel())
         }

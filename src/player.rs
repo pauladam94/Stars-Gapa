@@ -158,11 +158,30 @@ impl std::ops::IndexMut<&Location> for Player {
     fn index_mut(&mut self, index: &Location) -> &mut Self::Output {
         use Location::*;
         match index {
-            DiscardOrHand => &mut self.discard,
+            Discard => &mut self.discard,
             Played => &mut self.played,
             Hand => &mut self.hand,
             DrawPile => &mut self.draw_pile,
-            CurrentCard => panic!("Cannot Index Player with location \"current card\""),
+            Explorer => unreachable!(),
+            Shop => unreachable!(),
+        }
+    }
+}
+/// Implementation of the operation : `player`[`index`]
+/// - `player` a [Player]
+/// - `index` a [Location]
+impl std::ops::Index<&Location> for Player {
+    type Output = Deck;
+
+    fn index(&self, index: &Location) -> &Self::Output {
+        use Location::*;
+        match index {
+            Discard => &self.discard,
+            Played => &self.played,
+            Hand => &self.hand,
+            DrawPile => &self.draw_pile,
+            Explorer => unreachable!(),
+            Shop => unreachable!(),
         }
     }
 }
@@ -183,23 +202,6 @@ impl std::ops::Index<&mut Location> for Player {
     fn index(&self, index: &mut Location) -> &Self::Output {
         let index: &Location = index;
         &self[index]
-    }
-}
-/// Implementation of the operation : `player`[`index`]
-/// - `player` a [Player]
-/// - `index` a [Location]
-impl std::ops::Index<&Location> for Player {
-    type Output = Deck;
-
-    fn index(&self, index: &Location) -> &Self::Output {
-        use Location::*;
-        match index {
-            DiscardOrHand => &self.discard,
-            Played => &self.played,
-            Hand => &self.hand,
-            DrawPile => &self.draw_pile,
-            CurrentCard => panic!("Cannot Index Player with location \"current card\""),
-        }
     }
 }
 /// Implementation of the operation : `player`[`index`]

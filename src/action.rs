@@ -2,13 +2,32 @@ use crate::{faction::Factions, selection::Location};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
+pub enum ActionLoc {
+    Hand,
+    DiscardOrHand,
+    Shop,
+    CurrentCard,
+}
+
+impl Display for ActionLoc {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ActionLoc::Hand => write!(f, "hand"),
+            ActionLoc::DiscardOrHand => write!(f, "discard or hand"),
+            ActionLoc::Shop => write!(f, "shop"),
+            ActionLoc::CurrentCard => write!(f, "current card"),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Action {
     Gold(u32),
     Attack(u32),
     Authority(u32),
     Discard(u32),
     Scrap {
-        loc: Location,
+        loc: ActionLoc,
         nb: u32,
     },
     Draw(u32),
@@ -18,7 +37,6 @@ pub enum Action {
         result: Vec<Action>,
     },
 }
-
 
 /* Useful possible character
 
@@ -58,7 +76,7 @@ impl Display for Action {
 #[derive(Debug)]
 pub enum Condition {
     FactionPlayed(Factions),
-    ScrapThe(Location),
+    Action(Box<Action>),
     GreaterThan(Data, u32),
 }
 
@@ -66,7 +84,7 @@ impl Display for Condition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use Condition::*;
         match self {
-            ScrapThe(location) => write!(f, "{SCRAP_STR}"),
+            Action(action) => write!(f, "{}", action),
             GreaterThan(data, _) => write!(f, ""),
             FactionPlayed(factions) => write!(f, "{}", factions),
         }

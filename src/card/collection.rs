@@ -1,14 +1,11 @@
 use crate::{
-    action::{Action, Condition},
+    action::{Action, ActionLoc, Condition},
     card::{Card, CardInfo},
     faction::{Faction, Factions},
-    selection::Location,
 };
 
 use Action::*;
-use Condition::*;
 use Faction::*;
-use Location::*;
 impl Card {
     pub const EMPTY_SHIP: Self = Self::Ship(CardInfo::DEFAULT);
     pub const fn ship() -> Self {
@@ -49,15 +46,25 @@ impl Card {
     }
     pub fn with_faction_condition(mut self, faction: Faction, action: Action) -> Self {
         self.get_mut_info().actions.push(Complex {
-            condition: FactionPlayed(Factions::new(vec![faction])),
+            condition: Condition::FactionPlayed(Factions::new(vec![faction])),
             result: vec![action],
         });
         self
     }
-    pub fn with_my_faction(mut self, action: Action) -> Self {
+    pub fn when_scraped(mut self, action: Action) -> Self {
+        self.get_mut_info().actions.push(Complex {
+            condition: Condition::Action(Box::new(Action::Scrap {
+                loc: ActionLoc::CurrentCard,
+                nb: 1,
+            })),
+            result: vec![action],
+        });
+        self
+    }
+    pub fn when_faction_played(mut self, action: Action) -> Self {
         if let Some(my_faction) = self.get_info().faction.first().clone().cloned() {
             self.get_mut_info().actions.push(Complex {
-                condition: FactionPlayed(Factions::new(vec![my_faction.clone()])),
+                condition: Condition::FactionPlayed(Factions::new(vec![my_faction.clone()])),
                 result: vec![action],
             })
         } else {
@@ -90,7 +97,10 @@ impl Card {
             .with_name("Explorer")
             .with_action(Gold(2))
             .with_action(Complex {
-                condition: ScrapThe(CurrentCard),
+                condition: Condition::Action(Box::new(Scrap {
+                    loc: ActionLoc::CurrentCard,
+                    nb: 1,
+                })),
                 result: vec![Attack(2)],
             })
     }
@@ -113,7 +123,7 @@ impl Card {
             .with_name("Trade bot")
             .with_action(Gold(1))
             .with_action(Scrap {
-                loc: Location::DiscardOrHand,
+                loc: ActionLoc::DiscardOrHand,
                 nb: 1,
             })
             .with_faction(Machine)
@@ -126,7 +136,7 @@ impl Card {
             .with_faction(Machine)
             .with_action(Attack(2))
             .with_action(Scrap {
-                loc: Location::DiscardOrHand,
+                loc: ActionLoc::DiscardOrHand,
                 nb: 1,
             })
             .with_faction_condition(Machine, Attack(2))
@@ -137,7 +147,7 @@ impl Card {
             .with_life(6)
             .with_name("Blob world")
             .with_action(Scrap {
-                loc: DiscardOrHand,
+                loc: ActionLoc::DiscardOrHand,
                 nb: 2,
             })
             .with_faction(Machine)
@@ -186,7 +196,7 @@ impl Card {
             .with_name("Battle pod")
             .with_action(Attack(4))
             .with_action(Scrap {
-                loc: Location::Shop,
+                loc: ActionLoc::Shop,
                 nb: 1,
             })
             .with_faction_condition(Blob, Attack(2))
@@ -197,7 +207,7 @@ impl Card {
             .with_name("Trade Pod")
             .with_faction(Blob)
             .with_action(Gold(3))
-            .with_my_faction(Attack(2))
+            .when_faction_played(Attack(2))
     }
     pub fn blob_wheel() -> Self {
         Self::base()
