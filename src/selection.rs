@@ -41,8 +41,8 @@ impl Location {
             Shop => Explorer,
             Hand => Hand,
             Played => Played,
-            Discard => Hand,
-            DrawPile => Played,
+            Discard => Played,
+            DrawPile => Hand,
         }
     }
     const fn next_down_first_player(&self, player: &PlayerId) -> (Location, PlayerId) {
@@ -179,7 +179,7 @@ impl Selection {
     pub fn next_left(&mut self) {
         *self = Selection {
             player: self.player,
-            loc: self.loc.next_right(),
+            loc: self.loc.next_left(),
             index: 0,
         };
     }

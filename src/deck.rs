@@ -180,13 +180,14 @@ impl Display for DeckStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}{}\n{}{}\n{}{}",
+            "{}{}\n{}{}\n{}{}\n{} cards",
             self.mean_gold(),
             GOLD_STR,
             self.mean_attack(),
             ATTACK_STR,
             self.mean_authority(),
-            AUTHORITY_STR
+            AUTHORITY_STR,
+            self.nb_cards
         )
     }
 }

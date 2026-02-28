@@ -99,7 +99,8 @@ impl Game {
         };
 
         match key_code {
-            Enter | Space => todo!(),
+            Enter => todo!(),
+            Space => todo!(),
             Left => {
                 if self.selection.index == 0 {
                     self.selection.next_left();
@@ -108,7 +109,7 @@ impl Game {
                 }
             }
             Right => {
-                if self.selection.index >= self[&self.selection].len() - 1 {
+                if self.selection.index + 1 >= self[&self.selection].len() {
                     self.selection.next_right();
                 } else {
                     self.selection.index += 1;
