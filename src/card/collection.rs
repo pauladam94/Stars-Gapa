@@ -96,13 +96,7 @@ impl Card {
             .costing(2)
             .with_name("Explorer")
             .with_action(Gold(2))
-            .with_action(Complex {
-                condition: Condition::Action(Box::new(Scrap {
-                    loc: ActionLoc::CurrentCard,
-                    nb: 1,
-                })),
-                result: vec![Attack(2)],
-            })
+            .when_scraped(Attack(2))
     }
 
     // TRADES
@@ -120,7 +114,7 @@ impl Card {
     pub fn trade_bot() -> Self {
         Self::ship()
             .costing(1)
-            .with_name("Trade bot")
+            .with_name("Trade Bot")
             .with_action(Gold(1))
             .with_action(Scrap {
                 loc: ActionLoc::DiscardOrHand,
@@ -132,7 +126,7 @@ impl Card {
     pub fn missile_bot() -> Self {
         Self::ship()
             .costing(2)
-            .with_name("missile_bot")
+            .with_name("Missile Bot")
             .with_faction(Machine)
             .with_action(Attack(2))
             .with_action(Scrap {
@@ -145,7 +139,7 @@ impl Card {
         Self::outpost()
             .costing(8)
             .with_life(6)
-            .with_name("Blob world")
+            .with_name("Blob World")
             .with_action(Scrap {
                 loc: ActionLoc::DiscardOrHand,
                 nb: 2,
@@ -199,7 +193,7 @@ impl Card {
                 loc: ActionLoc::Shop,
                 nb: 1,
             })
-            .with_faction_condition(Blob, Attack(2))
+            .when_faction_played(Attack(2))
     }
     pub fn trade_pod() -> Self {
         Self::ship()
@@ -211,5 +205,10 @@ impl Card {
     }
     pub fn blob_wheel() -> Self {
         Self::base()
+            .costing(3)
+            .with_name("Blob Wheel")
+            .with_faction(Blob)
+            .with_action(Attack(1))
+            .when_scraped(Gold(3))
     }
 }

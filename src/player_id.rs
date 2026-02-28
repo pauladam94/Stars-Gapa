@@ -37,7 +37,10 @@ impl<T> std::ops::Index<&mut PlayerId> for [T; 2] {
 
 impl Display for PlayerId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_usize())
+        match self {
+            PlayerId::First => write!(f, "1st"),
+            PlayerId::Second => write!(f, "2nd"),
+        }
     }
 }
 

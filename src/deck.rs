@@ -6,6 +6,7 @@ use crate::{
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin},
     prelude::{Buffer, Rect},
+    style::Style,
     text::Line,
     widgets::{Block, BorderType, Paragraph, Widget},
 };
@@ -233,6 +234,11 @@ impl Widget for DeckWidget<'_, '_> {
         Block::bordered()
             .title_top(Line::from(self.name).left_aligned())
             .border_type(BorderType::LightDoubleDashed)
+            .border_style(if self.selection.is_some() {
+                Style::new().blue()
+            } else {
+                Style::new()
+            })
             .render(area, buf);
         let area = area.inner(Margin::new(1, 1));
         if self.hidden {

@@ -1,8 +1,4 @@
-use crate::{
-    action::{Action, Condition},
-    faction::{Faction, Factions},
-    selection::Location,
-};
+use crate::{action::Action, faction::Factions};
 use ratatui::{
     prelude::{Buffer, Rect},
     style::Style,

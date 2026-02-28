@@ -2,6 +2,7 @@ use crate::card::Card;
 use crate::deck::Deck;
 use crate::player::Player;
 use crate::player_id::PlayerId;
+use crate::selection::Location;
 use crate::selection::Selection;
 use ratatui::crossterm::event::Event;
 use ratatui::crossterm::event::KeyEvent;
@@ -18,9 +19,9 @@ use ratatui::widgets::Widget;
 #[derive(Debug)]
 pub struct Game {
     pub players: [Player; 2],
-    deck: Deck,
-    explorer: Deck,
-    shop: Deck,
+    pub deck: Deck,
+    pub explorer: Deck,
+    pub shop: Deck,
     selection: Selection,
     current_player: PlayerId,
 }
@@ -101,225 +102,21 @@ impl Game {
             Enter | Space => todo!(),
             Left => {
                 if self.selection.index == 0 {
+                    self.selection.next_left();
                 } else {
                     self.selection.index -= 1;
                 }
             }
             Right => {
-                if self.selection.index == self[&self.selection].len() - 1 {
+                if self.selection.index >= self[&self.selection].len() - 1 {
+                    self.selection.next_right();
                 } else {
                     self.selection.index += 1;
                 }
             }
-            Up => self.selection.next_up(),
-            Down => self.selection.next_down(),
+            Up => self.selection.next_up(&self.current_player),
+            Down => self.selection.next_down(&self.current_player),
         }
-
-        // match (key_code, &mut self.selection) {
-        //     (EnterOrSpace, Shop { index }) => {
-        //         self.players[self.current_player].buy_from_shop(
-        //             &mut self.deck,
-        //             &mut self.shop,
-        //             *index,
-        //         );
-        //     }
-        //     (EnterOrSpace, ShopExplorer) => {
-        //         self.players[self.current_player].buy_card(Card::explorer());
-        //     }
-        //     (EnterOrSpace, ActionButton) => {
-        //         let attack = self.players[self.current_player].get_attack();
-
-        //         if attack == 0 {
-        //             self.next_turn();
-        //         } else {
-        //             self.players[self.current_player.other()].authority -= attack;
-        //         }
-        //     }
-        //     (
-        //         EnterOrSpace,
-        //         Deck {
-        //             index,
-        //             player,
-        //             kind: Location::Hand,
-        //         },
-        //     ) => {
-        //         self.players[*player].play_card(*index);
-        //         if self.players[player].hand.is_empty() {
-        //             self.selection = ActionButton;
-        //         }
-        //     }
-        //     (
-        //         EnterOrSpace,
-        //         Deck {
-        //             index,
-        //             player,
-        //             kind,
-        //         },
-        //     ) => (),
-        //     (Left, Shop { index: 0 }) => self.selection = ShopExplorer,
-        //     (Left, Shop { index }) => *index -= 1,
-        //     (Left, ShopExplorer) => (), // Nothing to do
-        //     (Left, ActionButton) => {
-        //         if !self.players[self.current_player.to_usize()].hand.is_empty() {
-        //             self.selection = Deck {
-        //                 index: self.players[self.current_player.to_usize()].hand.len() - 1,
-        //                 player: self.current_player,
-        //                 kind: Location::Hand,
-        //             }
-        //         }
-        //     }
-        //     (
-        //         Left,
-        //         Deck {
-        //             index: 0,
-        //             player,
-        //             kind,
-        //         },
-        //     ) => (),
-        //     (
-        //         Left,
-        //         Deck {
-        //             index,
-        //             player,
-        //             kind,
-        //         },
-        //     ) => *index -= 1,
-        //     (Right, Shop { index }) => {
-        //         if *index != self.shop.len() - 1 {
-        //             *index += 1;
-        //         }
-        //     }
-        //     (Right, ShopExplorer) => self.selection = Shop { index: 0 },
-        //     (Right, ActionButton) => (), // Nothing to do
-        //     (
-        //         Right,
-        //         Deck {
-        //             index,
-        //             player: PlayerId::First,
-        //             kind: Location::Hand,
-        //         },
-        //     ) => {
-        //         if *index + 1 == self.players[0].hand.len() {
-        //             self.selection = ActionButton;
-        //         } else {
-        //             *index += 1;
-        //         }
-        //     }
-        //     (
-        //         Right,
-        //         Deck {
-        //             player,
-        //             kind,
-        //             index,
-        //         },
-        //     ) => {
-        //         if *index + 1 != self.players[player][kind].len() {
-        //             *index += 1;
-        //         }
-        //     }
-        //     (Up, Shop { .. }) => {
-        //         self.selection = Deck {
-        //             player: self.current_player.other(),
-        //             kind: Location::Hand,
-        //             index: 0,
-        //         }
-        //     }
-        //     (Up, ShopExplorer) => {
-        //         self.selection = Deck {
-        //             player: self.current_player.other(),
-        //             kind: Location::Hand,
-        //             index: 0,
-        //         }
-        //     }
-        //     (Up, ActionButton) => self.selection = Shop { index: 0 },
-        //     (
-        //         Up,
-        //         Deck {
-        //             player,
-        //             kind,
-        //             index,
-        //         },
-        //     ) => {
-        //         if player == &self.current_player {
-        //             match kind {
-        //                 Location::DiscardOrHand | Location::Played => {
-        //                     self.selection = Shop { index: 0 }
-        //                 }
-        //                 Location::Hand => {
-        //                     *kind = Location::Played;
-        //                     *index = 0;
-        //                 }
-        //                 Location::DrawPile => {
-        //                     *index = 0;
-        //                     *kind = Location::DiscardOrHand;
-        //                 }
-        //                 Location::Shop => ()
-        //                 Location::CurrentCard => (),
-        //             }
-        //         } else {
-        //             ()
-        //         }
-        //     }
-        //     (Down, Shop { .. } | ShopExplorer) => {
-        //         if !self.players[self.current_player].played.is_empty() {
-        //             self.selection = Deck {
-        //                 player: self.current_player,
-        //                 kind: Location::Played,
-        //                 index: 0,
-        //             }
-        //         } else if !self.players[self.current_player].hand.is_empty() {
-        //             self.selection = Deck {
-        //                 player: self.current_player,
-        //                 kind: Location::Hand,
-        //                 index: 0,
-        //             }
-        //         } else {
-        //             self.selection = ActionButton;
-        //         }
-        //     }
-        //     (Down, ActionButton) => (),
-        //     (
-        //         Down,
-        //         Deck {
-        //             player: PlayerId::First,
-        //             kind: Location::Played,
-        //             ..
-        //         },
-        //     ) => {
-        //         if !self.players[self.current_player].hand.is_empty() {
-        //             self.selection = Deck {
-        //                 player: PlayerId::First,
-        //                 kind: Location::Hand,
-        //                 index: 0,
-        //             }
-        //         } else {
-        //             self.selection = ActionButton
-        //         }
-        //     }
-        //     (
-        //         Down,
-        //         Deck {
-        //             player: PlayerId::First,
-        //             kind: Location::Hand,
-        //             ..
-        //         },
-        //     ) => self.selection = ActionButton,
-        //     (
-        //         Down,
-        //         Deck {
-        //             player: PlayerId::First,
-        //             ..
-        //         },
-        //     ) => self.selection = ActionButton,
-        //     (
-        //         Down,
-        //         Deck {
-        //             player: PlayerId::Second,
-        //             kind,
-        //             index,
-        //         },
-        //     ) => self.selection = ShopExplorer,
-        // }
     }
 }
 
@@ -392,14 +189,14 @@ impl Widget for &Game {
                     .played
                     .widget()
                     .set_name("Played Cards")
-                    .set_selection(None)
+                    .set_selection(self.selection.player(self.current_player, Location::Played))
                     .render(played, buf);
                 // Hand of the player
                 player
                     .hand
                     .widget()
                     .set_name("Hand")
-                    .set_selection(self.selection.player(self.current_player))
+                    .set_selection(self.selection.player(self.current_player, Location::Hand))
                     .render(hand, buf);
             }
 
@@ -419,7 +216,10 @@ impl Widget for &Game {
                     .draw_pile
                     .widget()
                     .set_name("Draw Pile")
-                    .set_selection(None)
+                    .set_selection(
+                        self.selection
+                            .player(self.current_player, Location::DrawPile),
+                    )
                     .hidden()
                     .render(draw_pile, buf);
                 // Discard of the current player
@@ -427,7 +227,10 @@ impl Widget for &Game {
                     .discard
                     .widget()
                     .set_name("Discard")
-                    .set_selection(None)
+                    .set_selection(
+                        self.selection
+                            .player(self.current_player, Location::Discard),
+                    )
                     .hidden()
                     .render(discard, buf);
             }
