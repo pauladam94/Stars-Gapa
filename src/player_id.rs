@@ -6,6 +6,25 @@ pub enum PlayerId {
     Second,
 }
 
+impl PlayerId {
+    pub const fn new(id: usize) -> Self {
+        if id == 0 {
+            Self::First
+        } else if id == 1 {
+            Self::Second
+        } else {
+            panic!("Only 0 and 1 can be converted to PlayerId")
+        }
+    }
+    pub fn random() -> Self {
+        match rand::random_range(0..2) {
+            0 => Self::First,
+            1 => Self::Second,
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl<T> std::ops::Index<PlayerId> for [T; 2] {
     type Output = T;
     fn index(&self, index: PlayerId) -> &Self::Output {

@@ -2,13 +2,16 @@ use crate::{
     action::{ATTACK_STR, AUTHORITY_STR, Action, GOLD_STR},
     card::Card,
     faction::Faction,
+    game::Game,
+    player_id::PlayerId,
+    selection::{GamePosition, Location},
 };
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin},
     prelude::{Buffer, Rect},
-    style::Style,
+    style::{Color, Style, Stylize},
     text::Line,
-    widgets::{Block, BorderType, Paragraph, Widget},
+    widgets::{Block, BorderType, Clear, Paragraph, Widget},
 };
 use std::fmt::Display;
 
@@ -76,17 +79,25 @@ impl Deck {
             deck.push(Card::cutter());
         }
         // Machine
-        deck.push(Card::brain_world());
         for _ in 0..3 {
             deck.push(Card::trade_bot());
             deck.push(Card::missile_bot());
         }
+        deck.push(Card::brain_world());
 
         // Star
+        for _ in 0..3 {
+            deck.push(Card::corvette());
+            deck.push(Card::federation_shuttle());
+            deck.push(Card::imperial_fighter());
+        }
 
         // Blob
         for _ in 0..3 {
-            deck.push(Card::blob_wheel())
+            deck.push(Card::blob_fighter());
+            deck.push(Card::battle_pod());
+            deck.push(Card::trade_pod());
+            deck.push(Card::blob_wheel());
         }
 
         Self(deck)
@@ -95,16 +106,17 @@ impl Deck {
     pub fn widget<'a, 'b>(&'a self) -> DeckWidget<'a, 'b> {
         DeckWidget {
             name: "",
-            selection: None,
             hidden: false,
             deck: self,
+            selection: vec![],
+            max_cols: None,
         }
     }
 
     pub fn iter(&self) -> std::slice::Iter<'_, Card> {
         self.0.iter()
     }
-    pub fn get_stats(&self) -> DeckStats {
+    pub fn get_stats(&self) -> impl Display {
         DeckStats::default().analyze_deck(self)
     }
 }
@@ -130,7 +142,6 @@ impl DeckStats {
     pub fn analyze_card(mut self, card: &Card) -> Self {
         self.nb_cards += 1.;
         let stats = card
-            .get_info()
             .faction
             .iter()
             .fold(self, |stats, faction| stats.analyze_faction(faction));
@@ -147,7 +158,12 @@ impl DeckStats {
             Scrap { loc, nb } => self.scrap += *nb as f32,
             Draw(i) => self.draw += *i as f32,
             OpponentDiscard(i) => self.opponentdiscard += *i as f32,
-            Complex { condition, result } => (),
+            Complex {
+                cond: condition,
+                action: result,
+            } => (),
+            Copy => (),
+            Or(action, action1) => (),
         }
         self
     }
@@ -180,13 +196,10 @@ impl Display for DeckStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}{}\n{}{}\n{}{}\n{} cards",
+            "{:.2}{GOLD_STR}\n{:.2}{ATTACK_STR}\n{:.2}{AUTHORITY_STR}\n{} cards",
             self.mean_gold(),
-            GOLD_STR,
             self.mean_attack(),
-            ATTACK_STR,
             self.mean_authority(),
-            AUTHORITY_STR,
             self.nb_cards
         )
     }
@@ -207,8 +220,9 @@ impl std::ops::IndexMut<usize> for Deck {
 
 pub struct DeckWidget<'a, 'b> {
     name: &'b str,
-    selection: Option<usize>,
+    selection: Vec<usize>,
     hidden: bool,
+    max_cols: Option<usize>,
     deck: &'a Deck,
 }
 
@@ -222,20 +236,58 @@ impl<'a, 'b> DeckWidget<'a, 'b> {
     pub fn set_name<'c>(self, name: &'c str) -> DeckWidget<'a, 'c> {
         DeckWidget { name: name, ..self }
     }
-    pub fn set_selection(self, selection: Option<usize>) -> Self {
-        Self { selection, ..self }
+    pub fn set_max_cols(self, max_cols: usize) -> DeckWidget<'a, 'b> {
+        DeckWidget {
+            max_cols: Some(max_cols),
+            ..self
+        }
+    }
+    pub fn set_selection(mut self, game: &Game, loc: Location, playerid: PlayerId) -> Self {
+        use Location::*;
+        pub fn get_index(pos: &GamePosition, loc: Location, playerid: PlayerId) -> Option<usize> {
+            if (pos.player == playerid || pos.loc == Shop || pos.loc == Explorer) && pos.loc == loc
+            {
+                Some(pos.index)
+            } else {
+                None
+            }
+        }
+        if let Some(i) = get_index(&game.position, loc, playerid) {
+            self.selection.push(i)
+        }
+        for select in &game.selection {
+            if let Some(i) = get_index(select, loc, playerid) {
+                self.selection.push(i)
+            }
+        }
+        self
     }
 }
 
-impl Widget for DeckWidget<'_, '_> {
-    fn render(self, area: Rect, buf: &mut Buffer)
+impl DeckWidget<'_, '_> {
+    /// Renders a Deck
+    ///
+    /// If this Deck necessitate a popup it will return [true]
+    /// else it returns [fals€]
+    pub fn render(mut self, mut area: Rect, buf: &mut Buffer) -> bool
     where
         Self: Sized,
     {
+        let mut need_popup = false;
+        if self.hidden && !self.selection.is_empty() {
+            area = buf.area;
+            self.hidden = false;
+            Clear.render(area, buf);
+            need_popup = true;
+        }
         Block::bordered()
             .title_top(Line::from(self.name).left_aligned())
-            .border_type(BorderType::LightDoubleDashed)
-            .border_style(if self.selection.is_some() {
+            .border_type(if !self.selection.is_empty() {
+                BorderType::Plain
+            } else {
+                BorderType::LightDoubleDashed
+            })
+            .border_style(if !self.selection.is_empty() {
                 Style::new().blue()
             } else {
                 Style::new()
@@ -245,19 +297,36 @@ impl Widget for DeckWidget<'_, '_> {
         if self.hidden {
             Paragraph::new(format!("{}", self.deck.get_stats()))
                 .centered()
-                .block(Block::bordered())
                 .render(area, buf);
-            return;
+            return false;
         }
-        let layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Fill(1); self.deck.len()])
-            .split(area);
+
+        let layout: Vec<Rect> = if let Some(max_cols) = self.max_cols {
+            let col_constraints = (0..max_cols).map(|_| Constraint::Fill(1));
+            let row_constraints =
+                (0..(self.deck.len() / max_cols + 1)).map(|_| Constraint::Fill(1));
+            let horizontal = Layout::horizontal(col_constraints).spacing(1);
+            let vertical = Layout::vertical(row_constraints).spacing(1);
+
+            let rows = vertical.split(area);
+            rows.iter()
+                .flat_map(|&row| horizontal.split(row).to_vec())
+                .collect()
+        } else {
+            Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(vec![Constraint::Fill(1); self.deck.len()])
+                .split(area)
+                .into_iter()
+                .map(|r| r.clone())
+                .collect()
+        };
 
         for (i, card) in (0..layout.len()).zip(self.deck.iter()) {
             card.widget()
-                .set_selection(self.selection.is_some() && self.selection.unwrap() == i)
+                .set_selection(self.selection.contains(&i))
                 .render(layout[i], buf);
         }
+        need_popup
     }
 }

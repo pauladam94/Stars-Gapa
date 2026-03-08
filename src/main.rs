@@ -1,6 +1,7 @@
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, poll, read};
 use ratatui::widgets::Widget;
 use stars_gapa::game::Game;
+use stars_gapa::input::Input;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,10 +19,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 {
                     break;
                 }
-                game.interact(event);
+                game.interact(Input::from(event));
                 terminal.draw(|frame| (&game).render(frame.area(), frame.buffer_mut()))?;
             }
         }
         Ok(())
     })
 }
+

@@ -3,6 +3,7 @@ use crate::{
     card::Card,
     deck::Deck,
     selection::Location,
+    state::State,
 };
 use std::fmt::Display;
 
@@ -15,6 +16,7 @@ pub struct Player {
     pub gold: u32,
     pub authority: u32,
     pub attack: u32,
+    pub opponent_discard: u32,
 }
 
 impl Player {
@@ -25,18 +27,21 @@ impl Player {
     /// returns Err(()) otherwise.
     pub fn buy_from_shop(
         &mut self,
-        // Complete deck
+        // Complete deck of cards
         deck: &mut Deck,
         shop: &mut Deck,
         index: usize,
     ) -> Result<(), ()> {
-        let info_card = shop[index].get_info();
-        if self.gold >= info_card.gold {
-            self.gold -= info_card.gold;
-            self.discard.push(std::mem::replace(
-                &mut shop[index],
-                deck.remove_random().unwrap(),
-            ));
+        let card = &shop[index];
+        // If the player has enough money
+        if self.gold >= card.gold {
+            self.gold -= card.gold;
+            // Remove a card fr
+            if let Ok(card) = deck.remove_random() {
+                // Put the card on the discard
+                // TODO: maybe put it on the top of the deck if special ability
+                self.discard.push(std::mem::replace(&mut shop[index], card));
+            }
             Ok(())
         } else {
             Err(())
@@ -47,7 +52,7 @@ impl Player {
     /// - returns Ok(())  if the player can buy it : do it
     /// - returns Err(()) otherwise.
     pub fn buy_card(&mut self, card: Card) -> Result<(), ()> {
-        let price_card = card.get_info().gold;
+        let price_card = card.gold;
         if self.gold >= price_card {
             self.gold -= price_card;
             self.discard.push(card);
@@ -55,13 +60,6 @@ impl Player {
         } else {
             Err(())
         }
-    }
-
-    /// Gets the attack of a [Player] and set it to 0
-    pub fn get_attack(&mut self) -> u32 {
-        let attack = self.attack;
-        self.attack = 0;
-        attack
     }
 
     /// Draw a complete hand of 5 cards for a [Player]
@@ -73,28 +71,35 @@ impl Player {
 
     /// Apply an [Action] to a [Player]
     /// changing for example the money the player has.
-    pub fn apply_action(&mut self, action: &Action) {
+    pub fn apply_action(&mut self, action: &Action, state: &mut State) {
         use Action::*;
+        // todo handle all actions
         match action {
             Gold(i) => self.gold += i,
             Attack(i) => self.attack += i,
             Authority(i) => self.authority += i,
-            Discard(_) => todo!(),
-            Scrap { loc, nb } => todo!(),
+            Discard(i) => (),
+            Scrap { loc, nb } => *state = State::Scraping { nb: *nb, loc: *loc },
             Draw(i) => {
                 for _ in 0..*i {
                     self.draw_random_card();
                 }
             }
-            OpponentDiscard(i) => (),
-            Complex { condition, result } => (),
+            OpponentDiscard(i) => self.opponent_discard += i,
+            Complex {
+                cond: condition,
+                action: result,
+            } => (),
+            // TODO: do something change state (to copy state)
+            Copy => *state = State::Copy,
+            Or(action, action1) => (), // TODO: do something
         }
     }
 
     /// Apply the [Action] of a [Card] to a [Player]
-    pub fn apply_card(&mut self, card: &Card) {
+    pub fn apply_card(&mut self, card: &Card, state: &mut State) {
         for action in card.iter() {
-            self.apply_action(action)
+            self.apply_action(action, state);
         }
     }
 
@@ -120,12 +125,15 @@ impl Player {
     }
 
     /// Play a [Card] of a [Player] at a specific index
-    pub fn play_card(&mut self, index: usize) {
+    pub fn play_card(&mut self, index: usize, state: &mut State) {
         let card = self.hand.remove(index);
-        self.apply_card(&card);
+        self.apply_card(&card, state);
         self.played.push(card);
     }
-    pub fn by_card(&mut self) {}
+
+    pub(crate) fn activate_played_card(&mut self, index: usize, state: &mut State) {
+        ()
+    }
 }
 
 impl Display for Player {
@@ -147,6 +155,7 @@ impl Default for Player {
             attack: 0,
             authority: 50,
             played: Deck::EMPTY,
+            opponent_discard: 0,
         }
     }
 }

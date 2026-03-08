@@ -1,4 +1,4 @@
-use crate::{deck::Deck, game::Game, player::Player, player_id::PlayerId};
+use crate::{deck::Deck, game::Game, player_id::PlayerId};
 use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -24,6 +24,28 @@ impl Display for Location {
         }
     }
 }
+
+#[derive(PartialEq, Eq)]
+enum TopOrBot {
+    Top,
+    Bot,
+}
+impl TopOrBot {
+    pub fn from(player: &PlayerId, current_player: &PlayerId) -> Self {
+        if player == current_player {
+            TopOrBot::Bot
+        } else {
+            TopOrBot::Top
+        }
+    }
+    pub fn to_player(&self, current_player: &PlayerId) -> PlayerId {
+        use TopOrBot::*;
+        match self {
+            Top => current_player.other(),
+            Bot => *current_player,
+        }
+    }
+}
 impl Location {
     pub const fn next_right(&self) -> Location {
         match self {
@@ -45,79 +67,102 @@ impl Location {
             DrawPile => Hand,
         }
     }
-    const fn next_down_first_player(&self, player: &PlayerId) -> (Location, PlayerId) {
-        use PlayerId::*;
-        match (self, player) {
-            (Explorer, _) | (Shop, _) => (Played, First),
-            (Hand, First) => (Hand, First),
-            (Hand, Second) => (Played, Second),
-            (Played, First) => (Hand, First),
-            (Played, Second) => (Shop, First),
-            (Discard, First) => (DrawPile, First),
-            (Discard, Second) => (Shop, First),
-            (DrawPile, First) => (DrawPile, First),
-            (DrawPile, Second) => (Discard, Second),
+    const fn next_down_position(&self, pos: &TopOrBot) -> (Location, TopOrBot) {
+        use TopOrBot::*;
+        match (self, pos) {
+            (Explorer, _) | (Shop, _) => (Played, Bot),
+            (Hand, Top) => (Played, Top),
+            (Played, Top) => (Shop, Bot),
+            (DrawPile, Top) => (Discard, Top),
+            (Discard, Top) => (Discard, Bot),
+            (Discard, Bot) => (DrawPile, Bot),
+            (DrawPile, Bot) => (DrawPile, Bot),
+            (Played, Bot) => (Hand, Bot),
+            (Hand, Bot) => (Hand, Bot),
         }
     }
-    const fn next_up_first_player(&self, player: &PlayerId) -> (Location, PlayerId) {
-        use PlayerId::*;
-        match (self, player) {
-            (Explorer, _) | (Shop, _) => (Played, Second),
-            (Hand, First) => (Played, First),
-            (Hand, Second) => (Hand, Second),
-            (Played, First) => (Shop, First),
-            (Played, Second) => (Hand, Second),
-            (Discard, First) => (Shop, First),
-            (Discard, Second) => (DrawPile, Second),
-            (DrawPile, First) => (Discard, First),
-            (DrawPile, Second) => (DrawPile, Second),
+    const fn next_up_position(&self, pos: &TopOrBot) -> (Location, TopOrBot) {
+        use TopOrBot::*;
+        match (self, pos) {
+            (Explorer, _) | (Shop, _) => (Played, Top),
+            (Hand, Bot) => (Played, Bot),
+            (Hand, Top) => (Hand, Top),
+            (Played, Bot) => (Shop, Bot),
+            (Played, Top) => (Hand, Top),
+            (Discard, Bot) => (Discard, Top),
+            (Discard, Top) => (DrawPile, Top),
+            (DrawPile, Bot) => (Discard, Bot),
+            (DrawPile, Top) => (DrawPile, Top),
         }
     }
-    pub const fn next_down(
-        &self,
-        player: &PlayerId,
-        current_player: &PlayerId,
-    ) -> (Location, PlayerId) {
-        use PlayerId::*;
-        match current_player {
-            First => self.next_down_first_player(player),
-            Second => self.next_up_first_player(player),
-        }
+    pub fn next_down(&self, player: &PlayerId, current_player: &PlayerId) -> (Location, PlayerId) {
+        let pos = TopOrBot::from(player, current_player);
+        let (loc, new_pos) = self.next_down_position(&pos);
+        (loc, new_pos.to_player(current_player))
     }
-    pub const fn next_up(
-        &self,
-        player: &PlayerId,
-        current_player: &PlayerId,
-    ) -> (Location, PlayerId) {
-        use PlayerId::*;
-        match current_player {
-            First => self.next_up_first_player(player),
-            Second => self.next_down_first_player(player),
+    pub fn next_up(&self, player: &PlayerId, current_player: &PlayerId) -> (Location, PlayerId) {
+        let pos = TopOrBot::from(player, current_player);
+        let (loc, new_pos) = self.next_up_position(&pos);
+        (loc, new_pos.to_player(current_player))
+    }
+    pub fn random() -> Self {
+        match rand::random_range(0..6) {
+            0 => Explorer,
+            1 => Shop,
+            2 => Hand,
+            3 => Played,
+            4 => Discard,
+            5 => DrawPile,
+            _ => unreachable!(),
         }
     }
 }
 
-#[derive(Debug)]
-pub struct Selection {
+#[cfg(test)]
+mod location_test {
+    use crate::player_id::PlayerId::*;
+    use crate::selection::Location::*;
+
+    #[test]
+    fn mouvement_test() {
+        assert_eq!(Shop.next_up(&First, &First), (Played, Second));
+        assert_eq!(Shop.next_down(&First, &First), (Played, First));
+        assert_eq!(Shop.next_up(&First, &Second), (Played, First));
+        assert_eq!(Played.next_down(&Second, &First), (Shop, First));
+
+        assert_eq!(Hand.next_up(&Second, &Second), (Played, Second));
+        assert_eq!(Hand.next_up(&First, &First), (Played, First));
+
+        assert_eq!(Played.next_up(&Second, &Second), (Shop, Second));
+        assert_eq!(Played.next_down(&Second, &Second), (Hand, Second));
+        assert_eq!(Played.next_up(&First, &First), (Shop, First));
+
+        assert_eq!(Discard.next_up(&Second, &Second), (Discard, First));
+        assert_eq!(DrawPile.next_up(&Second, &Second), (Discard, Second));
+        assert_eq!(DrawPile.next_down(&Second, &Second), (DrawPile, Second));
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GamePosition {
     pub player: PlayerId,
     pub loc: Location,
     pub index: usize,
 }
 
-impl Display for Selection {
+impl Display for GamePosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} at index {} | Turn of {} Player",
+            "{} at index {} of {} player",
             self.loc, self.index, self.player
         )
     }
 }
 
-impl std::ops::Index<&Selection> for Game {
+impl std::ops::Index<&GamePosition> for Game {
     type Output = Deck;
-
-    fn index(&self, index: &Selection) -> &Self::Output {
+    fn index(&self, index: &GamePosition) -> &Self::Output {
         match index.loc {
             Explorer => &self.explorer,
             Shop => &self.shop,
@@ -125,10 +170,9 @@ impl std::ops::Index<&Selection> for Game {
         }
     }
 }
-impl std::ops::Index<&Selection> for &mut Game {
+impl std::ops::Index<&GamePosition> for &mut Game {
     type Output = Deck;
-
-    fn index<'a>(&'a self, index: &Selection) -> &'a Self::Output {
+    fn index<'a>(&'a self, index: &GamePosition) -> &'a Self::Output {
         match index.loc {
             Explorer => &self.explorer,
             Shop => &self.shop,
@@ -137,7 +181,7 @@ impl std::ops::Index<&Selection> for &mut Game {
     }
 }
 
-impl Default for Selection {
+impl Default for GamePosition {
     fn default() -> Self {
         Self {
             player: PlayerId::First,
@@ -147,58 +191,45 @@ impl Default for Selection {
     }
 }
 
-impl Selection {
-    pub fn player(&self, player: PlayerId, loc: Location) -> Option<usize> {
-        if self.player == player && self.loc == loc {
-            Some(self.index)
-        } else {
-            None
-        }
-    }
-    pub fn explorer(&self) -> Option<usize> {
-        if self.loc == Explorer {
-            Some(self.index)
-        } else {
-            None
-        }
-    }
-    pub fn shop(&self) -> Option<usize> {
-        if self.loc == Shop {
-            Some(self.index)
-        } else {
-            None
-        }
-    }
+impl GamePosition {
     pub fn next_right(&mut self) {
-        *self = Selection {
+        *self = GamePosition {
             player: self.player,
             loc: self.loc.next_right(),
             index: 0,
-        };
+        }
     }
+
+    // todo that you never arrive in state (Hand of second player)
+    // which is not visible
     pub fn next_left(&mut self) {
-        *self = Selection {
+        *self = GamePosition {
             player: self.player,
             loc: self.loc.next_left(),
             index: 0,
-        };
+        }
     }
-    // todo
     pub fn next_up(&mut self, current_player: &PlayerId) {
         let (loc, player) = self.loc.next_up(&self.player, current_player);
-        *self = Selection {
+        *self = GamePosition {
             player,
             loc,
             index: 0,
-        };
+        }
     }
-    // todo
     pub fn next_down(&mut self, current_player: &PlayerId) {
         let (loc, player) = self.loc.next_down(&self.player, current_player);
-        *self = Selection {
+        *self = GamePosition {
             player,
             loc,
             index: 0,
-        };
+        }
+    }
+    pub fn random() -> Self {
+        Self {
+            player: PlayerId::random(),
+            loc: Location::random(),
+            index: rand::random_range(0..10),
+        }
     }
 }
