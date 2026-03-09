@@ -160,27 +160,6 @@ impl Display for GamePosition {
     }
 }
 
-impl std::ops::Index<&GamePosition> for Game {
-    type Output = Deck;
-    fn index(&self, index: &GamePosition) -> &Self::Output {
-        match index.loc {
-            Explorer => &self.explorer,
-            Shop => &self.shop,
-            _ => &self.players[index.player][index.loc],
-        }
-    }
-}
-impl std::ops::Index<&GamePosition> for &mut Game {
-    type Output = Deck;
-    fn index<'a>(&'a self, index: &GamePosition) -> &'a Self::Output {
-        match index.loc {
-            Explorer => &self.explorer,
-            Shop => &self.shop,
-            _ => &self.players[index.player][index.loc],
-        }
-    }
-}
-
 impl Default for GamePosition {
     fn default() -> Self {
         Self {

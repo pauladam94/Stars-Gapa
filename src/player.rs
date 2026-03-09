@@ -131,7 +131,18 @@ impl Player {
         self.played.push(card);
     }
 
+    // todo
     pub(crate) fn activate_played_card(&mut self, index: usize, state: &mut State) {
+        ()
+    }
+
+    // todo
+    pub(crate) fn discard_card(&self, pos: &crate::selection::GamePosition) {
+        ()
+    }
+
+    // todo
+    pub(crate) fn scrap_card(&self, pos: &crate::selection::GamePosition) {
         ()
     }
 }
@@ -163,8 +174,8 @@ impl Default for Player {
 /// Implementation of the operation : `player`[`index`]
 /// - `player` a [Player]
 /// - `index` a [Location]
-impl std::ops::IndexMut<&Location> for Player {
-    fn index_mut(&mut self, index: &Location) -> &mut Self::Output {
+impl std::ops::IndexMut<Location> for Player {
+    fn index_mut(&mut self, index: Location) -> &mut Self::Output {
         use Location::*;
         match index {
             Discard => &mut self.discard,
@@ -179,10 +190,10 @@ impl std::ops::IndexMut<&Location> for Player {
 /// Implementation of the operation : `player`[`index`]
 /// - `player` a [Player]
 /// - `index` a [Location]
-impl std::ops::Index<&Location> for Player {
+impl std::ops::Index<Location> for Player {
     type Output = Deck;
 
-    fn index(&self, index: &Location) -> &Self::Output {
+    fn index(&self, index: Location) -> &Self::Output {
         use Location::*;
         match index {
             Discard => &self.discard,
@@ -192,34 +203,5 @@ impl std::ops::Index<&Location> for Player {
             Explorer => unreachable!(),
             Shop => unreachable!(),
         }
-    }
-}
-/// Implementation of the operation : `player`[`index`]
-/// - `player` a [Player]
-/// - `index` a [Location]
-impl std::ops::IndexMut<Location> for Player {
-    fn index_mut(&mut self, index: Location) -> &mut Self::Output {
-        &mut self[&index]
-    }
-}
-/// Implementation of the operation : `player`[`index`]
-/// - `player` a [Player]
-/// - `index` a [Location]
-impl std::ops::Index<&mut Location> for Player {
-    type Output = Deck;
-
-    fn index(&self, index: &mut Location) -> &Self::Output {
-        let index: &Location = index;
-        &self[index]
-    }
-}
-/// Implementation of the operation : `player`[`index`]
-/// - `player` a [Player]
-/// - `index` a [Location]
-impl std::ops::Index<Location> for Player {
-    type Output = Deck;
-
-    fn index(&self, index: Location) -> &Self::Output {
-        &self[&index]
     }
 }

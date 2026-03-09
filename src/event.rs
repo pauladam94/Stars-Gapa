@@ -1,5 +1,6 @@
 use crate::selection::GamePosition;
 
+#[derive(Debug, Clone)]
 pub enum Event {
     /// Buy a card from the shop at a given index
     Buy(usize),

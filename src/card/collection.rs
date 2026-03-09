@@ -291,4 +291,12 @@ impl Card {
             .when_faction_played(Attack(2))
             .when_scraped(Gold(3))
     }
+    pub fn blob_destroyer() -> Self {
+        // todo finish this card
+        Self::ship()
+            .costing(4)
+            .with_name("Blob Destroyer")
+            .with_action(Attack(6))
+            .when_faction_played(Action::Discard(2))
+    }
 }

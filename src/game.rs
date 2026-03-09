@@ -9,7 +9,6 @@ use crate::selection::GamePosition;
 use crate::selection::Location;
 use crate::state::State;
 use ratatui::layout::Constraint;
-use ratatui::layout::Direction;
 use ratatui::layout::Layout;
 use ratatui::layout::Margin;
 use ratatui::prelude::Buffer;
@@ -29,9 +28,11 @@ pub struct Game {
     pub selection: Vec<GamePosition>,
     pub state: State,
     pub current_player: PlayerId,
+    pub historic: Vec<Event>,
 }
 impl Game {
     pub fn new() -> Self {
+        let current_player = PlayerId::random();
         let mut deck = Deck::starter_complete_deck();
         let mut shop = Deck::EMPTY;
         let mut explorer = Deck::EMPTY;
@@ -41,16 +42,19 @@ impl Game {
             shop.push(deck.remove_random().unwrap());
         }
         let mut players = [Player::default(), Player::default()];
-        players[0].draw_hand();
+        for _ in 0..3 {
+            players[current_player].draw_random_card();
+        }
         Self {
             players,
             deck,
             explorer,
             shop,
             position: GamePosition::default(),
-            current_player: PlayerId::First,
+            current_player,
             state: State::START_GAME,
             selection: vec![],
+            historic: vec![],
         }
     }
     /// Pass to the next turn in a [Game]
@@ -162,7 +166,7 @@ impl Game {
                 None
             }
             Right => {
-                if self.position.index + 1 >= self[&self.position].len() {
+                if self.position.index + 1 >= self[self.position.player][self.position.loc].len() {
                     self.position.next_right();
                 } else {
                     self.position.index += 1;
@@ -192,6 +196,9 @@ impl Game {
             self.apply_event(event);
         }
     }
+    /// Check if an event is a valid event
+    ///
+    /// todo be more restrictive about what "valid" means
     pub fn event_is_valid(&self, event: &Event) -> bool {
         use Event::*;
         use State::*;
@@ -210,6 +217,7 @@ impl Game {
     pub fn apply_event(&mut self, event: Event) {
         // Verify first that the event is valid given the context of the [Game]
         if !self.event_is_valid(&event) {
+            self.historic.push(event.clone());
             return;
         }
         use Event::*;
@@ -239,12 +247,13 @@ impl Game {
                 }
             }
             Choose(positions) => match &self.state {
-                // todo finish this
                 Discarding { nb, loc } => {
                     if positions.len() as u32 > *nb {
                         return;
                     }
-                    // todo do the discarding of cards
+                    for pos in &self.selection {
+                        self.players[self.current_player].discard_card(pos);
+                    }
                     self.selection.clear();
                     self.state = State::Playing;
                 }
@@ -259,7 +268,12 @@ impl Game {
                             return;
                         }
                     }
-                    // todo do the scraping of cards
+
+                    // todo fix this
+                    // for pos in &self.selection {
+                    //     self.scrap_card(pos);
+                    // }
+
                     self.selection.clear();
                     self.state = State::Playing;
                 }
@@ -297,6 +311,23 @@ impl Game {
     pub fn status_line(&self) -> impl Display {
         StatusLine(self)
     }
+
+    // todo
+    fn scrap_card(&mut self, GamePosition { player, loc, index }: &GamePosition) {
+        self[*player][*loc].remove(*index);
+    }
+}
+
+impl std::ops::Index<PlayerId> for Game {
+    type Output = Player;
+    fn index(&self, index: PlayerId) -> &Self::Output {
+        &self.players[index.to_usize()]
+    }
+}
+impl std::ops::IndexMut<PlayerId> for Game {
+    fn index_mut(&mut self, index: PlayerId) -> &mut Self::Output {
+        &mut self.players[index.to_usize()]
+    }
 }
 
 pub struct StatusLine<'a>(&'a Game);
@@ -308,13 +339,11 @@ impl Display for StatusLine<'_> {
         use State::*;
         let Game {
             players,
-            deck,
-            explorer,
-            shop,
             position,
             state,
             current_player,
             selection,
+            ..
         } = self.0;
 
         if let State::WonBy(playerid) = state {
@@ -328,7 +357,7 @@ impl Display for StatusLine<'_> {
         let width_enter = 20;
         match state {
             Playing => {
-                if players[current_player].attack == 0 {
+                if players[*current_player].attack == 0 {
                     write!(f, "{:^width$}", "Next Turn", width = width_enter)?;
                 } else {
                     write!(f, "{:^width$}", "Attack Opponent", width = width_enter)?;
